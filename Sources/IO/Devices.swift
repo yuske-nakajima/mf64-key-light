@@ -1,15 +1,32 @@
 import Core
+import Foundation
 
 /// MF64 8×8 パッドのデバイス定義。
 ///
 /// PadMap は説明書 Appendix 1 / Fig 1（Hardware Naming Convention）のデフォルト(Bank 1)に基づく実値。
-/// 色 velocity はダミー値で、実機採取で確定する（PR2）。
+/// 色 velocity は校正前プレースホルダで、colorscan で確定する。
 public enum Devices {
     /// パッド総数（8×8）。
     public static let padCount = 64
 
-    /// アーケードトリガーの MIDI チャンネル（1 始まり）。説明書記載の Bank 1 デフォルト。
-    public static let midiChannel = 3
+    /// 校正用に colorscan が既定で対象にする代表ノート（左下=ボタン1=note 36）。
+    public static let colorscanDefaultNote = 36
+
+    /// チャンネル既定値。tilerhyme 実機実証は ch1。説明書の factory default は ch3。
+    private static let defaultMidiChannel = 1
+
+    /// CoreMIDI 送信に使う MIDI チャンネル（1..16）。
+    ///
+    /// `MF64_MIDI_CHANNEL` があれば優先する。範囲外・不正値は既定にフォールバックする。
+    public static var midiChannel: Int {
+        guard let raw = ProcessInfo.processInfo.environment["MF64_MIDI_CHANNEL"],
+            let value = Int(raw),
+            (1...16).contains(value)
+        else {
+            return defaultMidiChannel
+        }
+        return value
+    }
 
     /// パッドインデックス(0..63, 左上=0 の行優先) → MIDI ノート番号。
     ///
@@ -25,12 +42,13 @@ public enum Devices {
 
     /// LEDColor → MF64 velocity 値。
     ///
-    /// ダミー値: root=1 / member=2 / outside=3。実機の色↔velocity 対応は PR2 で確定する。
+    /// 校正前プレースホルダ。紫/水色/白の確定値は colorscan で採取して差し替える。
+    /// 実機で各色を区別できる程度に離した仮値（root=45 / member=8 / outside=1）。
     public static func velocity(for color: LEDColor) -> UInt8 {
         switch color {
-        case .root: return 1
-        case .member: return 2
-        case .outside: return 3
+        case .root: return 45
+        case .member: return 8
+        case .outside: return 1
         }
     }
 
