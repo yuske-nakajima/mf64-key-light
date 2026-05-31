@@ -80,8 +80,25 @@ struct MainSection: View {
                 font: .jetBrainsMono(15),
                 color: DesignTokens.Engrave.strong
             )
+            rootStepButtons
         }
         .frame(width: 84)
+    }
+
+    /// ノブ直下の半音ステップボタン。ドラッグとは別経路の離散 ±1 を `onRootChange`（persist）へ流す。
+    private var rootStepButtons: some View {
+        HStack(spacing: 8) {
+            RoundSkeuoButton(
+                symbol: "♭",
+                caption: "DOWN",
+                action: { onRootChange(PitchClass(key.value - 1)) }
+            )
+            RoundSkeuoButton(
+                symbol: "#",
+                caption: "UP",
+                action: { onRootChange(PitchClass(key.value + 1)) }
+            )
+        }
     }
 
     /// ROOT ノブのバインディング。get は現在キー、set は確定コールバックへ流す。

@@ -1,20 +1,20 @@
 import SwiftUI
 
-/// モック（暗色スキュモーフィック）のデザイントークン。色・影・角丸・間隔を一元化する。
+/// モック（シルバースキュモーフィック）のデザイントークン。色・影・角丸・間隔を一元化する。
 ///
-/// 値は `design-tokens.txt` の暗テーマ系列とレンダリング DOM の box-shadow / gradient から採取。
+/// 外側パネル/プレート/刻印は明るいシルバー系。LCD コンテナの中だけ暗い（screen-bg）。
 enum DesignTokens {
     // MARK: - プレート（金属/樹脂面）
 
     enum Plate {
         /// 面の上端（明）。`--plate-top`。
-        static let top = Color(hex: 0x42_43_4A)
+        static let top = Color(hex: 0xF3_F3_F5)
         /// 面の下端（暗）。`--plate-bot`。
-        static let bottom = Color(hex: 0x26_27_2D)
+        static let bottom = Color(hex: 0xD3_D4_D9)
         /// リム（縁）。`--plate-rim`。
-        static let rim = Color(hex: 0x15_16_1A)
+        static let rim = Color(hex: 0xB3_B4_BB)
         /// 最深部（彫り込みの底）。`--plate-deep`。
-        static let deep = Color(hex: 0x0E_0F_12)
+        static let deep = Color(hex: 0x9A_9B_A3)
     }
 
     // MARK: - LCD（暗パネル）
@@ -74,28 +74,30 @@ enum DesignTokens {
     // MARK: - ボタン
 
     enum Button {
-        /// 立体ボタン面の上 / 下（`linear 180deg #34363f→#212229`）。
-        static let top = Color(hex: 0x34_36_3F)
-        static let bottom = Color(hex: 0x21_22_29)
+        /// 立体ボタン面の上 / 下（明るいシルバー）。
+        static let top = Color(hex: 0xEC_ED_F0)
+        static let bottom = Color(hex: 0xC9_CA_D1)
+        /// ボタン上の刻印テキスト色（明るい面で読める濃いグレー）。
+        static let label = Color(hex: 0x4A_4C_55)
     }
 
     // MARK: - 刻印テキスト
 
     enum Engrave {
-        /// 通常刻印色。`--eng`（暗系列）。
+        /// 通常刻印色。`--eng`。
         static let normal = Color(hex: 0x9D_A0_AB)
-        /// 強い刻印色。`--eng-strong`（暗系列）。
+        /// 強い刻印色。`--eng-strong`。
         static let strong = Color(hex: 0xC2_C5_CF)
         /// 彫り込みの暗側影（上）。`--eng-shadow` 0 1px 0 rgba(0,0,0,.6)。
         static let shadowDark = Color.black.opacity(0.6)
-        /// 彫り込みの明側ハイライト（下）。
-        static let highlight = Color.white.opacity(0.12)
+        /// 明るい面の刻印の下に当てる白ハイライト。
+        static let highlight = Color.white.opacity(0.85)
     }
 
     // MARK: - グレイン
 
     enum Grain {
-        /// 重ねる不透明度。`--grain` 暗系列。
+        /// 重ねる不透明度。`--grain`。
         static let opacity: Double = 0.06
     }
 

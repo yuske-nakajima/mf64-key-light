@@ -27,7 +27,7 @@ struct SkeuoButtonStyle: ButtonStyle {
         let pressed = configuration.isPressed
         configuration.label
             .font(.oswald(13))
-            .foregroundStyle(DesignTokens.Engrave.strong)
+            .foregroundStyle(DesignTokens.Button.label)
             .background(
                 shape.fill(
                     LinearGradient(
@@ -67,13 +67,81 @@ struct SkeuoButtonStyle: ButtonStyle {
     }
 }
 
+/// 丸い立体ボタン（ROOT の ♭ DOWN / # UP 用）。中央に記号、下にラベルを置く。
+///
+/// `SkeuoButton` と同じ明シルバーの面 + 押下凹みを円形で表す。
+struct RoundSkeuoButton: View {
+    var symbol: String
+    var caption: String
+    var action: () -> Void
+
+    var diameter: CGFloat = 40
+
+    @State private var pressed = false
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Button(action: action) {
+                Text(symbol)
+                    .font(.oswald(16))
+                    .foregroundStyle(DesignTokens.Button.label)
+                    .frame(width: diameter, height: diameter)
+            }
+            .buttonStyle(RoundSkeuoButtonStyle(diameter: diameter))
+            .accessibilityLabel(caption)
+            EngravedText(caption, font: .oswald(10))
+        }
+    }
+}
+
+/// 円形立体ボタンの見た目。押下でグラデ反転 + 凹み。
+struct RoundSkeuoButtonStyle: ButtonStyle {
+    var diameter: CGFloat
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        configuration.label
+            .background(
+                Circle().fill(
+                    LinearGradient(
+                        colors: pressed
+                            ? [DesignTokens.Button.bottom, DesignTokens.Button.top]
+                            : [DesignTokens.Button.top, DesignTokens.Button.bottom],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            )
+            .overlay(
+                Circle().strokeBorder(
+                    pressed ? Color.black.opacity(0.3) : Color.white.opacity(0.7),
+                    lineWidth: 1
+                )
+            )
+            .shadow(
+                color: Color.black.opacity(pressed ? 0.1 : 0.3),
+                radius: pressed ? 1 : 3,
+                x: 0,
+                y: pressed ? 1 : 2
+            )
+            .offset(y: pressed ? 1 : 0)
+            .animation(.easeOut(duration: 0.08), value: pressed)
+    }
+}
+
 struct SkeuoButton_Previews: PreviewProvider {
     static var previews: some View {
-        HStack(spacing: 16) {
-            SkeuoButton(action: {}) { Text("NEXT") }
-            SkeuoButton(action: {}) { Text("COPY") }
-            SkeuoButton(action: {}) {
-                Label("COLOR SCAN", systemImage: "sparkles")
+        VStack(spacing: 20) {
+            HStack(spacing: 16) {
+                SkeuoButton(action: {}) { Text("NEXT") }
+                SkeuoButton(action: {}) { Text("COPY") }
+                SkeuoButton(action: {}) {
+                    Label("COLOR SCAN", systemImage: "sparkles")
+                }
+            }
+            HStack(spacing: 16) {
+                RoundSkeuoButton(symbol: "♭", caption: "DOWN", action: {})
+                RoundSkeuoButton(symbol: "#", caption: "UP", action: {})
             }
         }
         .padding(40)
