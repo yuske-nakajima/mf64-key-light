@@ -64,7 +64,10 @@ struct CoreMIDILoopbackTests {
         // destination が CoreMIDI に登録されるまで僅かに待つ。
         Thread.sleep(forTimeInterval: 0.2)
 
-        let sender = try CoreMIDISender(nameMatch: name, channel: 1)
+        let sender = try CoreMIDISender(
+            nameMatch: name,
+            settings: Settings(midiChannel: 1, colorRoot: 54, colorMember: 36, colorOutside: 3)
+        )
         sender.sendNoteOn(note: 36, velocity: 45)
 
         // 非同期配送を待つ。

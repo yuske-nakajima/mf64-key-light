@@ -29,13 +29,17 @@ public final class CoreMIDISender: MIDISender, RawMIDISender {
     private let client: MIDIClientRef
     private let port: MIDIPortRef
     private let destination: MIDIEndpointRef
-    private let channel: Int
+    private let settings: Settings
+
+    private var channel: Int { settings.midiChannel }
 
     /// destination を名前一致で探して接続する。見つからなければ throw する。
     ///
-    /// - Parameter nameMatch: destination 名にこの文字列を含むものを探す（大文字小文字無視）。
-    public init(nameMatch: String = "Midi Fighter 64", channel: Int = Devices.midiChannel) throws {
-        self.channel = channel
+    /// - Parameters:
+    ///   - nameMatch: destination 名にこの文字列を含むものを探す（大文字小文字無視）。
+    ///   - settings: 送信チャンネルと色 velocity の供給元。
+    public init(nameMatch: String = "Midi Fighter 64", settings: Settings = .default) throws {
+        self.settings = settings
 
         var client = MIDIClientRef()
         let clientStatus = MIDIClientCreate("mf64-key-light" as CFString, nil, nil, &client)
@@ -92,7 +96,7 @@ public final class CoreMIDISender: MIDISender, RawMIDISender {
             // padMap 範囲外のパッドはスキップする。
             guard pad >= 0, pad < padMap.count else { continue }
             let note = padMap[pad]
-            let velocity = Devices.velocity(for: color)
+            let velocity = settings.velocity(for: color)
             sendNoteOn(note: note, velocity: velocity)
         }
     }

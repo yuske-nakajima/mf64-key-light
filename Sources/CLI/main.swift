@@ -15,15 +15,22 @@ private func printUsage() {
           scale --up | --down                   スケールを巡回方向へ 1 つ進める
           root  --up | --down                   ルートを半音上下する
           off                                   全 64 パッドを消灯（velocity 0）
+          config [--channel N] [--root V] [--member V] [--outside V]
+                                                MIDI チャンネル(1..16)と紫/水色/白の velocity(0..127)
+                                                を設定。引数なしで現在値を表示
           colorscan [--note N] [--from A] [--to B] [--delay MS]
                                                 指定 note に velocity A..B を順送りして校正
           monitor                               MF64 の入力を監視しログ出力（Ctrl-C で終了）
+
+        config の参考値: channel=2 / 紫(root)=54 / 水色(member)=36 / 白(outside)=3
 
         examples:
           mf64 set --key C --scale major
           mf64 scale --up
           mf64 root --down
           mf64 off
+          mf64 config
+          mf64 config --channel 3 --root 50
           mf64 colorscan --from 0 --to 20 --delay 300
           mf64 monitor
         """
@@ -34,7 +41,7 @@ private func printUsage() {
 private func describe(_ error: ParseError) -> String {
     switch error {
     case .missingSubcommand:
-        return "サブコマンドがありません（set / scale / root / off / colorscan）"
+        return "サブコマンドがありません（set / scale / root / off / config / colorscan）"
     case .unknownSubcommand(let s):
         return "未知のサブコマンドです: \(s)"
     case .unknownOption(let s):
@@ -51,6 +58,22 @@ private func describe(_ error: ParseError) -> String {
         return "--up または --down が必要です"
     case .conflictingArguments(let s):
         return "引数が重複・矛盾しています: \(s)"
+    }
+}
+
+/// ConfigParseError を人間可読なメッセージへ変換する。
+private func describe(_ error: ConfigParseError) -> String {
+    switch error {
+    case .missingValue(let option):
+        return "オプション \(option) に値が必要です"
+    case .invalidValue(let option, let value):
+        return "オプション \(option) の値が不正です: \(value)"
+    case .unknownOption(let s):
+        return "未知のオプションです: \(s)"
+    case .channelOutOfRange(let v):
+        return "--channel は 1..16 の範囲です: \(v)"
+    case .colorOutOfRange(let option, let value):
+        return "\(option) は 0..127 の範囲です: \(value)"
     }
 }
 
@@ -80,17 +103,70 @@ private func isDryRun() -> Bool {
 
 /// 実送信用の RawMIDISender を返す。dry-run なら LoggingMIDISender。
 /// 実機モードで destination 不在なら nil（呼び出し側で扱う）。
-private func makeRawSender() -> RawMIDISender? {
+private func makeRawSender(_ settings: Settings) -> RawMIDISender? {
     if isDryRun() {
-        return LoggingMIDISender()
+        return LoggingMIDISender(settings: settings)
     }
-    return try? CoreMIDISender()
+    return try? CoreMIDISender(settings: settings)
+}
+
+/// DB から設定を読む。失敗時は fail で終了。
+private func loadSettings() -> Settings {
+    do {
+        return try StateStore().loadSettings()
+    } catch {
+        fail("設定の読み込みに失敗しました: \(error)")
+    }
+}
+
+// MARK: - config（設定の表示・更新）
+
+private func printSettings(_ settings: Settings) {
+    print(
+        "config: channel=\(settings.midiChannel) "
+            + "紫(root)=\(settings.colorRoot) 水色(member)=\(settings.colorMember) "
+            + "白(outside)=\(settings.colorOutside)"
+    )
+}
+
+private func runConfig(_ rest: [String]) -> Never {
+    let store = StateStore()
+    let current: Settings
+    do {
+        current = try store.loadSettings()
+    } catch {
+        fail("設定の読み込みに失敗しました: \(error)")
+    }
+
+    if rest.isEmpty {
+        printSettings(current)
+        exit(0)
+    }
+
+    let updated: Settings
+    switch parseConfig(rest, base: current) {
+    case .success(let s):
+        updated = s
+    case .failure(let error):
+        FileHandle.standardError.write(Data(("error: " + describe(error) + "\n").utf8))
+        printUsage()
+        exit(1)
+    }
+
+    do {
+        try store.saveSettings(updated)
+    } catch {
+        fail("設定の保存に失敗しました: \(error)")
+    }
+    printSettings(updated)
+    exit(0)
 }
 
 // MARK: - off / colorscan（状態遷移でない CLI 専用サブコマンド）
 
 private func runOff() -> Never {
-    guard let sender = makeRawSender() else {
+    let settings = loadSettings()
+    guard let sender = makeRawSender(settings) else {
         fail(CoreMIDIError.destinationNotFound.description)
     }
     sender.sendAllOff(padMap: Devices.defaultPadMap)
@@ -109,7 +185,8 @@ private func runColorscan(_ rest: [String]) -> Never {
         exit(1)
     }
 
-    guard let sender = makeRawSender() else {
+    let settings = loadSettings()
+    guard let sender = makeRawSender(settings) else {
         fail(CoreMIDIError.destinationNotFound.description)
     }
 
@@ -168,15 +245,22 @@ private func runStateCommand(_ command: Command) -> Never {
     let keyName = keyNames[updated.key.value]
     print("state: key=\(keyName) scale=\(updated.scale.rawValue)")
 
+    let settings: Settings
+    do {
+        settings = try store.loadSettings()
+    } catch {
+        fail("設定の読み込みに失敗しました: \(error)")
+    }
+
     let pads = layout(state: updated, padMap: Devices.defaultPadMap)
 
     if isDryRun() {
-        LoggingMIDISender().send(pads, padMap: Devices.defaultPadMap)
+        LoggingMIDISender(settings: settings).send(pads, padMap: Devices.defaultPadMap)
         exit(0)
     }
 
     do {
-        let sender = try CoreMIDISender()
+        let sender = try CoreMIDISender(settings: settings)
         sender.send(pads, padMap: Devices.defaultPadMap)
         exit(0)
     } catch {
@@ -198,6 +282,8 @@ guard let sub = args.first else {
 let rest = Array(args.dropFirst())
 
 switch sub {
+case "config":
+    runConfig(rest)
 case "off":
     runOff()
 case "colorscan":

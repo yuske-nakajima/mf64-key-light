@@ -1,36 +1,9 @@
-import Foundation
 import Testing
 
 @testable import IO
 
 @Suite("Devices")
 struct DevicesTests {
-    /// MF64_MIDI_CHANNEL を読むテストはプロセス共有 env を触るため直列化する。
-    @Suite(.serialized)
-    struct MidiChannelEnv {
-        @Test("環境変数未設定なら既定 2")
-        func defaultChannel() {
-            unsetenv("MF64_MIDI_CHANNEL")
-            #expect(Devices.midiChannel == 2)
-        }
-
-        @Test("範囲内の環境変数を優先する")
-        func envOverride() {
-            setenv("MF64_MIDI_CHANNEL", "3", 1)
-            defer { unsetenv("MF64_MIDI_CHANNEL") }
-            #expect(Devices.midiChannel == 3)
-        }
-
-        @Test("範囲外/不正は既定 2 にフォールバック")
-        func envFallback() {
-            defer { unsetenv("MF64_MIDI_CHANNEL") }
-            for invalid in ["0", "17", "-1", "abc", ""] {
-                setenv("MF64_MIDI_CHANNEL", invalid, 1)
-                #expect(Devices.midiChannel == 2)
-            }
-        }
-    }
-
     /// 左上=0 の行優先で、説明書 Fig 1 の物理配置に対応するノート番号を持つ。
     @Test func padMapCorners() {
         let map = Devices.defaultPadMap
@@ -52,14 +25,5 @@ struct DevicesTests {
     /// 全64パッドが note 36..99 を重複なく1つずつ持つ（半音階の全単射）。
     @Test func padMapIsBijectionOf36to99() {
         #expect(Set(Devices.defaultPadMap) == Set(36...99))
-    }
-
-    /// 色 velocity は3色とも異なる（実機で区別可能）。
-    @Test("velocity: root/member/outside が相異なる")
-    func velocityDistinct() {
-        let root = Devices.velocity(for: .root)
-        let member = Devices.velocity(for: .member)
-        let outside = Devices.velocity(for: .outside)
-        #expect(Set([root, member, outside]).count == 3)
     }
 }

@@ -61,6 +61,65 @@ struct StateStoreTests {
         }
     }
 
+    @Test("初回 loadSettings は default を投入して返す")
+    func initialLoadSettingsDefaults() throws {
+        try withTempStore { store in
+            let loaded = try store.loadSettings()
+            #expect(loaded == Settings.default)
+        }
+    }
+
+    @Test("saveSettings した設定が loadSettings で一致する")
+    func settingsRoundTrip() throws {
+        try withTempStore { store in
+            let saved = Settings(midiChannel: 7, colorRoot: 100, colorMember: 50, colorOutside: 0)
+            try store.saveSettings(saved)
+            let loaded = try store.loadSettings()
+            #expect(loaded == saved)
+        }
+    }
+
+    @Test("saveSettings は 1 行を上書きする")
+    func settingsOverwrites() throws {
+        try withTempStore { store in
+            try store.saveSettings(
+                Settings(midiChannel: 3, colorRoot: 1, colorMember: 2, colorOutside: 3)
+            )
+            let last = Settings(midiChannel: 9, colorRoot: 4, colorMember: 5, colorOutside: 6)
+            try store.saveSettings(last)
+            let loaded = try store.loadSettings()
+            #expect(loaded == last)
+        }
+    }
+
+    @Test("settings と state は同一 DB で独立に保持される")
+    func settingsAndStateCoexist() throws {
+        try withTempStore { store in
+            try store.save(State(key: PitchClass(7), scale: .dorian))
+            let savedSettings = Settings(
+                midiChannel: 5,
+                colorRoot: 10,
+                colorMember: 20,
+                colorOutside: 30
+            )
+            try store.saveSettings(savedSettings)
+            let loadedState = try store.load()
+            let loadedSettings = try store.loadSettings()
+            #expect(loadedState == State(key: PitchClass(7), scale: .dorian))
+            #expect(loadedSettings == savedSettings)
+        }
+    }
+
+    @Test("色境界値 0/127 がラウンドトリップで保持される")
+    func settingsColorBoundariesRoundTrip() throws {
+        try withTempStore { store in
+            let saved = Settings(midiChannel: 1, colorRoot: 0, colorMember: 127, colorOutside: 64)
+            try store.saveSettings(saved)
+            let loaded = try store.loadSettings()
+            #expect(loaded == saved)
+        }
+    }
+
     @Test("明示 path は MF64_DB_PATH より優先され、未指定なら環境変数を採用する")
     func explicitPathOverridesEnv() {
         setenv("MF64_DB_PATH", "/tmp/from-env.sqlite", 1)

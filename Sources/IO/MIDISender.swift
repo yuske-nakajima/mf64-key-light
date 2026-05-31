@@ -29,17 +29,22 @@ public protocol RawMIDISender {
 }
 
 /// 送信内容を標準出力にログ出力するだけのスタブ。実機なしでパイプライン確認に使う。
+///
+/// channel と色 velocity は注入された Settings から引く。
 public struct LoggingMIDISender: MIDISender, RawMIDISender {
-    public init() {}
+    private let settings: Settings
+
+    public init(settings: Settings = .default) {
+        self.settings = settings
+    }
 
     public func send(_ pads: [(pad: Int, color: LEDColor)], padMap: [Int]) {
-        let channel = Devices.midiChannel
         for (pad, color) in pads {
             // padMap 範囲外のパッドは送信対象から外す。
             guard pad < padMap.count else { continue }
             let note = padMap[pad]
-            let velocity = Devices.velocity(for: color)
-            let bytes = noteOnBytes(note: note, velocity: velocity, channel: channel)
+            let velocity = settings.velocity(for: color)
+            let bytes = noteOnBytes(note: note, velocity: velocity, channel: settings.midiChannel)
             print(
                 "MIDI send pad=\(pad) note=\(note) velocity=\(velocity) color=\(color) bytes=\(bytes)"
             )
@@ -47,7 +52,7 @@ public struct LoggingMIDISender: MIDISender, RawMIDISender {
     }
 
     public func sendNoteOn(note: Int, velocity: UInt8) {
-        let bytes = noteOnBytes(note: note, velocity: velocity, channel: Devices.midiChannel)
+        let bytes = noteOnBytes(note: note, velocity: velocity, channel: settings.midiChannel)
         print("MIDI send note=\(note) velocity=\(velocity) bytes=\(bytes)")
     }
 

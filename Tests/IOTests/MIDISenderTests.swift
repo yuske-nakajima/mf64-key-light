@@ -57,4 +57,40 @@ struct MIDISenderTests {
         // padMap のノートが順に出る。
         #expect(sink.sent.map { $0.note } == Devices.defaultPadMap)
     }
+
+    @Test("LoggingMIDISender.send は Settings の channel と色 velocity を bytes に反映する")
+    func loggingSenderReflectsSettings() {
+        let settings = Settings(midiChannel: 4, colorRoot: 80, colorMember: 70, colorOutside: 60)
+        let sender = LoggingMIDISender(settings: settings)
+        // pad0 = root, pad1 = member, pad2 = outside。padMap でノートに解決される。
+        let padMap = [36, 40, 44]
+        let pads: [(pad: Int, color: LEDColor)] = [
+            (0, .root), (1, .member), (2, .outside),
+        ]
+        let output = captureStdout {
+            sender.send(pads, padMap: padMap)
+        }
+        // status は ch4 = 0x93。
+        #expect(output.contains("bytes=[147, 36, 80]"))  // root
+        #expect(output.contains("bytes=[147, 40, 70]"))  // member
+        #expect(output.contains("bytes=[147, 44, 60]"))  // outside
+    }
+}
+
+/// クロージャ実行中の標準出力を捕捉して返す。
+private func captureStdout(_ body: () -> Void) -> String {
+    let pipe = Pipe()
+    let original = dup(STDOUT_FILENO)
+    fflush(stdout)
+    dup2(pipe.fileHandleForWriting.fileDescriptor, STDOUT_FILENO)
+
+    body()
+
+    fflush(stdout)
+    dup2(original, STDOUT_FILENO)
+    close(original)
+    pipe.fileHandleForWriting.closeFile()
+
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    return String(decoding: data, as: UTF8.self)
 }
