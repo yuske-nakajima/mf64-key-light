@@ -2,10 +2,18 @@ import AppKit
 import Core
 import SwiftUI
 
-/// 実行可能な全コマンド文字列を一覧表示し、フルパス付きでコピーできる。
+/// モック下段の「SHORTCUT COMMANDS」セクション。
 ///
+/// 各行は刻印ラベル + 等幅コマンド（JetBrains Mono）+ COPY ボタン。COPY は NSPasteboard へコピーする。
 /// ショートカット.app は PATH を引き継がないため、実行ファイルのフルパスを添えて掲示する。
 struct CommandCatalogView: View {
+    /// 1 コマンド行（表示ラベルと貼り付け用コマンド文字列）。
+    private struct CommandRow: Identifiable {
+        let id = UUID()
+        let label: String
+        let command: String
+    }
+
     /// CLI 実行バイナリのフルパス。GUI 実行バイナリと同じディレクトリの `mf64` を指す想定。
     private var binaryPath: String {
         let dir =
@@ -15,46 +23,74 @@ struct CommandCatalogView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("コマンドカタログ").font(.headline)
-            Text("各行をコピーしてショートカット等から実行できます（フルパス付き）。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ForEach(Array(commands.enumerated()), id: \.offset) { _, cmd in
-                row(cmd)
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.element) {
+            HStack(alignment: .firstTextBaseline) {
+                EngravedText(
+                    "SHORTCUT COMMANDS",
+                    font: .oswald(13),
+                    color: DesignTokens.Engrave.normal
+                )
+                Spacer()
+                EngravedText("paste into Shortcuts.app", font: .oswald(11))
+            }
+            VStack(spacing: 0) {
+                ForEach(rows) { row in
+                    commandRow(row)
+                }
             }
         }
     }
 
-    /// 全コマンド文字列（フルパス付き）。
-    private var commands: [String] {
-        var result: [String] = []
-        // set: 全キー × 全スケール。
-        for keyName in KeyNames.names {
-            for scale in Scale.allCases {
-                result.append("\(binaryPath) set --key \(keyName) --scale \(scale.rawValue)")
-            }
-        }
-        // 相対コマンド。
-        result.append("\(binaryPath) scale --up")
-        result.append("\(binaryPath) scale --down")
-        result.append("\(binaryPath) root --up")
-        result.append("\(binaryPath) root --down")
-        return result
+    /// 掲示するコマンド行（モック忠実の最小集合）。
+    private var rows: [CommandRow] {
+        [
+            CommandRow(
+                label: "set key / scale",
+                command: "\(binaryPath) set --key C --scale major"
+            ),
+            CommandRow(label: "scale cycle", command: "\(binaryPath) scale --up"),
+            CommandRow(label: "root ± semitone", command: "\(binaryPath) root --up"),
+            CommandRow(label: "blackout", command: "\(binaryPath) off"),
+            CommandRow(label: "monitor input", command: "\(binaryPath) monitor"),
+        ]
     }
 
-    private func row(_ cmd: String) -> some View {
-        HStack {
-            Text(cmd)
-                .font(.system(.caption, design: .monospaced))
+    private func commandRow(_ row: CommandRow) -> some View {
+        HStack(spacing: 16) {
+            EngravedText(row.label, font: .oswald(12))
+                .frame(width: 140, alignment: .leading)
+            Text(row.command)
+                .font(.jetBrainsMono(13))
+                .foregroundStyle(DesignTokens.Engrave.strong)
                 .textSelection(.enabled)
-            Spacer()
-            Button("コピー") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(cmd, forType: .string)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 12)
+            SkeuoButton(action: { copy(row.command) }) {
+                Text("COPY")
             }
-            .controlSize(.small)
         }
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) {
+            // 行間の彫り込み境界線。
+            Rectangle()
+                .fill(Color.white.opacity(0.05))
+                .frame(height: 1)
+        }
+    }
+
+    /// コマンド文字列をペーストボードへコピーする。
+    private func copy(_ command: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
+    }
+}
+
+struct CommandCatalogView_Previews: PreviewProvider {
+    static var previews: some View {
+        CommandCatalogView()
+            .padding(32)
+            .background(PlateBackground().ignoresSafeArea())
+            .previewDisplayName("CommandCatalogView")
     }
 }

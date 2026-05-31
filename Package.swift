@@ -22,7 +22,8 @@ let package = Package(
         ),
         .executableTarget(
             name: "GUI",
-            dependencies: ["Core", "IO"]
+            dependencies: ["Core", "IO"],
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "CoreTests",
