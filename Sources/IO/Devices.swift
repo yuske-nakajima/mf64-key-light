@@ -2,26 +2,54 @@ import Core
 
 /// MF64 8×8 パッドのデバイス定義。
 ///
-/// 重要: ここの値はすべて**ダミー**。実機の MIDI ノート割り当てと LED velocity は
-/// 実機採取で確定する（PR2）。それまでは型と結線を成立させるための仮値を置く。
+/// PadMap は説明書 Appendix 1 / Fig 1（Hardware Naming Convention）のデフォルト(Bank 1)に基づく実値。
+/// 色 velocity はダミー値で、実機採取で確定する（PR2）。
 public enum Devices {
     /// パッド総数（8×8）。
     public static let padCount = 64
 
-    /// パッドインデックス(0..63) → MIDI ノート番号。
+    /// アーケードトリガーの MIDI チャンネル（1 始まり）。説明書記載の Bank 1 デフォルト。
+    public static let midiChannel = 3
+
+    /// パッドインデックス(0..63, 左上=0 の行優先) → MIDI ノート番号。
     ///
-    /// ダミー値: インデックスをそのままノート番号にする（0..63）。
-    /// オクターブ循環や実機レイアウトは PR2 で差し替える。
-    public static let dummyPadMap: [Int] = Array(0..<padCount)
+    /// MF64 は 4×4 の4象限で構成され、各象限内でボタン番号は左下→右→上の順。USB を上にした向きで:
+    /// ```
+    /// (上)  29 30 31 32 | 61 62 63 64
+    ///        ...        |    ...
+    /// (下)   1  2  3  4 | 33 34 35 36
+    /// ```
+    /// ノート番号 = ボタン番号 + 35（ボタン1=36/C1 … ボタン64=99/D#6）。
+    /// GUI/レイアウトのインデックスは左上=0 の行優先のため、象限座標から都度算出する。
+    public static let defaultPadMap: [Int] = buildPadMap()
 
     /// LEDColor → MF64 velocity 値。
     ///
-    /// ダミー値: root=1 / member=2 / outside=3。実機の色対応は PR2 で確定する。
+    /// ダミー値: root=1 / member=2 / outside=3。実機の色↔velocity 対応は PR2 で確定する。
     public static func velocity(for color: LEDColor) -> UInt8 {
         switch color {
         case .root: return 1
         case .member: return 2
         case .outside: return 3
         }
+    }
+
+    /// 左上=0 の行優先インデックスごとに、象限構造からボタン番号→ノート番号を算出する。
+    private static func buildPadMap() -> [Int] {
+        var map = [Int](repeating: 0, count: padCount)
+        for visualRow in 0..<8 {
+            for col in 0..<8 {
+                let isTop = visualRow < 4
+                let isLeft = col < 4
+                // 象限のボタン番号ベース（0始まり）: 左下=0, 左上=16, 右下=32, 右上=48。
+                let base = isTop ? (isLeft ? 16 : 48) : (isLeft ? 0 : 32)
+                // 象限内は下から上に増えるため、視覚行を象限内の下基準行へ反転する。
+                let quadRowFromBottom = 3 - (visualRow % 4)
+                let quadCol = col % 4
+                let button = base + quadRowFromBottom * 4 + quadCol + 1
+                map[visualRow * 8 + col] = button + 35
+            }
+        }
+        return map
     }
 }

@@ -91,6 +91,6 @@ do {
 let keyName = keyNames[updated.key.value]
 print("state: key=\(keyName) scale=\(updated.scale.rawValue)")
 
-let pads = layout(state: updated, padMap: Devices.dummyPadMap)
+let pads = layout(state: updated, padMap: Devices.defaultPadMap)
 let sender = LoggingMIDISender()
-sender.send(pads, padMap: Devices.dummyPadMap)
+sender.send(pads, padMap: Devices.defaultPadMap)

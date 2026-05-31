@@ -19,7 +19,7 @@ struct PadGridView: View {
     private let rows = 8
 
     var body: some View {
-        let pads = layout(state: state, padMap: Devices.dummyPadMap)
+        let pads = layout(state: state, padMap: Devices.defaultPadMap)
         VStack(spacing: 4) {
             ForEach(0..<rows, id: \.self) { row in
                 HStack(spacing: 4) {
