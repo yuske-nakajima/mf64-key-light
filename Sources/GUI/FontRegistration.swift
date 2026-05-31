@@ -30,10 +30,36 @@ enum FontRegistration {
 
     /// 同梱 ttf の URL を集める。
     ///
-    /// `.process("Resources")` はディレクトリ階層を平坦化しバンドル直下に ttf を置くため、
-    /// `subdirectory` は指定しない。
+    /// SwiftPM の `Bundle.module` は「`Bundle.main.bundleURL` 直下」か「ビルド時の絶対パス」しか
+    /// 見ないため、.app に同梱して配布すると解決できず `fatalError` でクラッシュする。
+    /// そのため Bundle.module は使わず、実行ファイル/.app から辿れる実在パスを自分で探す。
+    /// 見つからなければ空を返す（システム代替フォントにフォールバックし、クラッシュしない）。
     static func fontURLs() -> [URL] {
-        Bundle.module.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? []
+        let bundleName = "mf64-key-light_GUI.bundle"
+        let fileManager = FileManager.default
+
+        // 候補ディレクトリ: .app 起動時は Contents/Resources、`swift run` 時は .build/<config> 等。
+        var candidates: [URL] = []
+        if let resourceURL = Bundle.main.resourceURL {
+            candidates.append(resourceURL)
+        }
+        candidates.append(Bundle.main.bundleURL)
+        if let executableDir = Bundle.main.executableURL?.deletingLastPathComponent() {
+            candidates.append(executableDir)
+        }
+
+        for directory in candidates {
+            let bundleURL = directory.appendingPathComponent(bundleName)
+            guard fileManager.fileExists(atPath: bundleURL.path),
+                let bundle = Bundle(url: bundleURL),
+                let urls = bundle.urls(forResourcesWithExtension: "ttf", subdirectory: nil),
+                !urls.isEmpty
+            else {
+                continue
+            }
+            return urls
+        }
+        return []
     }
 
     /// PostScript 名で CoreText から実体を引けるフォント数を数える。
