@@ -24,8 +24,12 @@
 
 ```sh
 swift build       # ビルド
-swift test        # 単体テスト
+./scripts/test.sh # 単体テスト
 swift format lint --recursive Sources Tests   # lint
 ```
 
 Command Line Tools のみで完結する（Xcode 本体は不要）。
+
+> 単体テストは `swift-testing` を使う。Command Line Tools 環境では `swift test` が
+> フレームワーク/`lib_TestingInterop.dylib` を既定パスで解決できず実行時に dlopen 失敗するため、
+> `scripts/test.sh` が CLT 配下のパスを補って実行する（フル Xcode/CI では素の `swift test` にフォールバック）。
