@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      # タグ push 時はタグ名（v 接頭辞除去）でパッケージング。
+      # PR 時は dev 版で「パッケージングが壊れていないか」だけを検証する。
+      - name: Package DMG
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            bash scripts/package-dmg.sh "${GITHUB_REF_NAME#v}"
+          else
+            bash scripts/package-dmg.sh dev
+          fi
+      # PR ではリリースせず artifact として DMG を残す（検証用）。
+      - name: Upload DMG artifact
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmg
+          path: dist/*.dmg
+      # タグ時のみ GitHub Release を作成して DMG を添付する。
+      - name: Create GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/*.dmg
