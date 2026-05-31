@@ -3,6 +3,9 @@
 *.xcodeproj
 .DS_Store
 
+# パッケージング成果物（DMG・ステージング）
+dist/
+
 # SQLite 状態ファイル（ローカル実行で生成）
 *.sqlite
 *.sqlite-journal

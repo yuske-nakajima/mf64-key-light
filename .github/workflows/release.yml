@@ -1,0 +1,54 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+
+# 既定は読み取りのみ。Release 作成に必要な書き込み権限は release ジョブだけに与える。
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      # タグ push 時はタグ名（v 接頭辞除去）でパッケージング。
+      # PR 時は dev 版で「パッケージングが壊れていないか」だけを検証する。
+      - name: Package DMG
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            bash scripts/package-dmg.sh "${GITHUB_REF_NAME#v}"
+          else
+            bash scripts/package-dmg.sh dev
+          fi
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmg
+          path: dist/*.dmg
+
+  # タグ push 時のみ、package が作った DMG を GitHub Release に添付する。
+  # 書き込み権限はこのジョブに限定する。
+  release:
+    needs: package
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dmg
+          path: dist
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/*.dmg
