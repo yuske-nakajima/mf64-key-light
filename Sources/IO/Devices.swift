@@ -1,15 +1,12 @@
-import Core
-
 /// MF64 8×8 パッドのデバイス定義。
 ///
 /// PadMap は説明書 Appendix 1 / Fig 1（Hardware Naming Convention）のデフォルト(Bank 1)に基づく実値。
-/// 色 velocity はダミー値で、実機採取で確定する（PR2）。
 public enum Devices {
     /// パッド総数（8×8）。
     public static let padCount = 64
 
-    /// アーケードトリガーの MIDI チャンネル（1 始まり）。説明書記載の Bank 1 デフォルト。
-    public static let midiChannel = 3
+    /// 校正用に colorscan が既定で対象にする代表ノート（左下=ボタン1=note 36）。
+    public static let colorscanDefaultNote = 36
 
     /// パッドインデックス(0..63, 左上=0 の行優先) → MIDI ノート番号。
     ///
@@ -22,17 +19,6 @@ public enum Devices {
     /// ノート番号 = ボタン番号 + 35（ボタン1=36/C1 … ボタン64=99/D#6）。
     /// GUI/レイアウトのインデックスは左上=0 の行優先のため、象限座標から都度算出する。
     public static let defaultPadMap: [Int] = buildPadMap()
-
-    /// LEDColor → MF64 velocity 値。
-    ///
-    /// ダミー値: root=1 / member=2 / outside=3。実機の色↔velocity 対応は PR2 で確定する。
-    public static func velocity(for color: LEDColor) -> UInt8 {
-        switch color {
-        case .root: return 1
-        case .member: return 2
-        case .outside: return 3
-        }
-    }
 
     /// 左上=0 の行優先インデックスごとに、象限構造からボタン番号→ノート番号を算出する。
     private static func buildPadMap() -> [Int] {

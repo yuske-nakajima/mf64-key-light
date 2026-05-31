@@ -72,6 +72,45 @@ public struct StateStore {
         try write(db, state)
     }
 
+    /// settings を読む。行が無ければ Settings.default を投入して返す。
+    public func loadSettings() throws -> Settings {
+        let db = try open()
+        defer { sqlite3_close(db) }
+        try ensureSchema(db)
+
+        let sql = """
+            SELECT midi_channel, color_root, color_member, color_outside
+            FROM settings WHERE id = 1;
+            """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw StateStoreError.sqlite(message(db))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        if sqlite3_step(stmt) == SQLITE_ROW {
+            return Settings(
+                midiChannel: Int(sqlite3_column_int(stmt, 0)),
+                colorRoot: UInt8(clamping: Int(sqlite3_column_int(stmt, 1))),
+                colorMember: UInt8(clamping: Int(sqlite3_column_int(stmt, 2))),
+                colorOutside: UInt8(clamping: Int(sqlite3_column_int(stmt, 3)))
+            )
+        }
+
+        // 行が無い初回はデフォルトを投入して返す。
+        let initial = Settings.default
+        try writeSettings(db, initial)
+        return initial
+    }
+
+    /// settings を 1 行に書き込む（UPSERT）。
+    public func saveSettings(_ settings: Settings) throws {
+        let db = try open()
+        defer { sqlite3_close(db) }
+        try ensureSchema(db)
+        try writeSettings(db, settings)
+    }
+
     // MARK: - private
 
     private func open() throws -> OpaquePointer {
@@ -99,8 +138,40 @@ public struct StateStore {
                 current_key INTEGER NOT NULL,
                 current_scale TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS settings (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                midi_channel INTEGER NOT NULL,
+                color_root INTEGER NOT NULL,
+                color_member INTEGER NOT NULL,
+                color_outside INTEGER NOT NULL
+            );
             """
         try exec(db, sql)
+    }
+
+    private func writeSettings(_ db: OpaquePointer, _ settings: Settings) throws {
+        let sql = """
+            INSERT INTO settings (id, midi_channel, color_root, color_member, color_outside)
+            VALUES (1, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET midi_channel = excluded.midi_channel,
+                color_root = excluded.color_root,
+                color_member = excluded.color_member,
+                color_outside = excluded.color_outside;
+            """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw StateStoreError.sqlite(message(db))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_int(stmt, 1, Int32(settings.midiChannel))
+        sqlite3_bind_int(stmt, 2, Int32(settings.colorRoot))
+        sqlite3_bind_int(stmt, 3, Int32(settings.colorMember))
+        sqlite3_bind_int(stmt, 4, Int32(settings.colorOutside))
+
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw StateStoreError.sqlite(message(db))
+        }
     }
 
     private func write(_ db: OpaquePointer, _ state: State) throws {
