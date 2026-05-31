@@ -12,8 +12,10 @@ struct SettingsApp: App {
     var body: some Scene {
         WindowGroup("MF64 Key Light") {
             ContentView()
-                .frame(minWidth: 980, minHeight: 560)
+                .frame(minWidth: 980)
         }
+        // ウィンドウを内容ぴったりに収め、padding がそのまま上下左右の余白になるようにする。
+        .windowResizability(.contentSize)
     }
 }
 
@@ -49,7 +51,7 @@ struct ContentView: View {
     var body: some View {
         pageContent
             .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(PlateBackground().ignoresSafeArea())
             .overlay(GrainOverlay().ignoresSafeArea())
             .task {
@@ -101,10 +103,10 @@ struct ContentView: View {
     private var jumpNav: some View {
         HStack(spacing: DesignTokens.Spacing.element) {
             SkeuoButton(action: { page = .midiOutput }) {
-                Text("MIDI OUTPUT ↓")
+                Text("MIDI OUTPUT")
             }
             SkeuoButton(action: { page = .shortcut }) {
-                Text("SHORTCUT COMMANDS ↓")
+                Text("SHORTCUT COMMANDS")
             }
             Spacer(minLength: 0)
         }
