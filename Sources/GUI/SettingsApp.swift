@@ -84,6 +84,7 @@ struct ContentView: View {
                 updated.midiChannel = newValue
                 settings = updated
                 try? store.saveSettings(updated)
+                pushToDevice(key: key, scale: scale, settings: updated)
             }
         )
     }
@@ -100,6 +101,7 @@ struct ContentView: View {
                 updated[keyPath: keyPath] = UInt8(clamping: newValue)
                 settings = updated
                 try? store.saveSettings(updated)
+                pushToDevice(key: key, scale: scale, settings: updated)
             }
         )
         return Stepper("\(label): \(Int(settings[keyPath: keyPath]))", value: binding, in: 0...127)
@@ -127,10 +129,19 @@ struct ContentView: View {
         }
     }
 
-    /// 状態を更新して DB に保存する（ピッカー操作の唯一の書き込み経路）。
+    /// 状態を更新して DB に保存し、実機へ送信する（ピッカー操作の唯一の書き込み経路）。
     private func persist(key newKey: PitchClass, scale newScale: Scale) {
         key = newKey
         scale = newScale
         try? store.save(Core.State(key: newKey, scale: newScale))
+        pushToDevice(key: newKey, scale: newScale, settings: settings)
+    }
+
+    /// 現在のキー/スケール/設定で実機へ送信する。MF64 が接続されていなければ何もしない。
+    private func pushToDevice(key: PitchClass, scale: Scale, settings: IO.Settings) {
+        guard let sender = try? CoreMIDISender(settings: settings) else { return }
+        let state = Core.State(key: key, scale: scale)
+        let pads = layout(state: state, padMap: Devices.defaultPadMap)
+        sender.send(pads, padMap: Devices.defaultPadMap)
     }
 }
