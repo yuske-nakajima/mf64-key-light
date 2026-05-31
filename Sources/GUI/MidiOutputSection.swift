@@ -4,31 +4,22 @@ import SwiftUI
 
 /// モック中段の「01 MIDI OUTPUT」セクション。
 ///
-/// CHANNEL / ROOT VEL / MEMBER VEL / OUT VEL のノブ群、FACTORY REF 参考値表、COLOR SCAN ボタン。
+/// CHANNEL / ROOT VEL / MEMBER VEL / OUT VEL のノブ群、FACTORY REF 参考値表。
 /// ノブ確定は親へ `onSettingsChange` で渡し、親が saveSettings + pushToDevice する。
-/// COLOR SCAN は GUI 内で `ColorScanRunner` が colorscanSteps + CoreMIDISender により velocity を順送りする。
 struct MidiOutputSection: View {
     /// 現在の設定（ノブ get + FACTORY REF 表示の基準）。
     let settings: IO.Settings
-    /// MF64 接続状態（COLOR SCAN ボタンの有効/無効）。
-    let isConnected: Bool
     /// 設定確定（保存 + 送信は親）。
     let onSettingsChange: (IO.Settings) -> Void
-
-    /// COLOR SCAN の実行状態を持つランナー。
-    @StateObject private var scanRunner = ColorScanRunner()
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.element) {
             EngravedText("01 — MIDI OUTPUT", font: .oswald(13), color: DesignTokens.Engrave.normal)
             LCDContainer {
-                VStack(spacing: 20) {
-                    HStack(alignment: .top, spacing: 28) {
-                        knobRow
-                        Spacer(minLength: 12)
-                        factoryRef
-                    }
-                    colorScanButton
+                HStack(alignment: .top, spacing: 28) {
+                    knobRow
+                    Spacer(minLength: 12)
+                    factoryRef
                 }
                 .padding(28)
             }
@@ -138,33 +129,12 @@ struct MidiOutputSection: View {
             EngravedText(value, font: .jetBrainsMono(13), color: DesignTokens.Engrave.strong)
         }
     }
-
-    // MARK: - COLOR SCAN
-
-    private var colorScanButton: some View {
-        SkeuoButton(action: { scanRunner.toggle(settings: settings) }) {
-            HStack(spacing: 10) {
-                Image(systemName: scanRunner.isScanning ? "stop.fill" : "sparkles")
-                if let velocity = scanRunner.currentVelocity {
-                    Text("COLOR SCAN  vel \(velocity)")
-                        .font(.jetBrainsMono(13))
-                } else {
-                    Text("COLOR SCAN")
-                }
-            }
-            .foregroundStyle(DesignTokens.Accent.glowPurple)
-            .frame(maxWidth: .infinity)
-        }
-        .disabled(!isConnected && !scanRunner.isScanning)
-        .opacity(isConnected || scanRunner.isScanning ? 1 : 0.5)
-    }
 }
 
 struct MidiOutputSection_Previews: PreviewProvider {
     static var previews: some View {
         MidiOutputSection(
             settings: .default,
-            isConnected: true,
             onSettingsChange: { _ in }
         )
         .padding(32)

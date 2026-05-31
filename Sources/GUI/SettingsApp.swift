@@ -118,7 +118,6 @@ struct ContentView: View {
             subpageHeader("MIDI OUTPUT")
             MidiOutputSection(
                 settings: settings,
-                isConnected: connection.isConnected,
                 onSettingsChange: persistSettings
             )
             Spacer(minLength: 0)
