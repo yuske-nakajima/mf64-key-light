@@ -4,132 +4,155 @@ import SwiftUI
 
 @main
 struct SettingsApp: App {
+    init() {
+        // 同梱フォントを起動時に一度だけ登録する。
+        FontRegistration.registerBundledFonts()
+    }
+
     var body: some Scene {
         WindowGroup("MF64 Key Light") {
             ContentView()
-                .frame(minWidth: 720, minHeight: 560)
+                .frame(minWidth: 980)
         }
+        // ウィンドウを内容ぴったりに収め、padding がそのまま上下左右の余白になるようにする。
+        .windowResizability(.contentSize)
     }
 }
 
-/// 1 ウィンドウに「キー/スケール操作 + ライト配色」「コマンドカタログ」を並べる。
+/// ContentView が表示中のページ。中身をフルスワップで切り替える。
+enum Page {
+    /// HEADER + MAIN（KEY LIGHT）。下部にサブページへのナビを置く。
+    case main
+    /// MIDI OUTPUT セクション単独。
+    case midiOutput
+    /// SHORTCUT COMMANDS セクション単独。
+    case shortcut
+}
+
+/// ウィンドウ内容を `Page` 単位でフルスワップする（縦スクロールはしない）。
 ///
-/// ピッカーは現在状態そのものを操作する。変更すると DB に保存され、グリッドが追従する。
-/// CLI/ショートカットでの変更も 0.5 秒ポーリングでピッカー/グリッドに反映する（双方向）。
+/// 各操作は現在状態そのものを編集する。変更すると DB に保存され、実機とグリッドが追従する。
+/// CLI/ショートカットでの変更も 0.5 秒ポーリングで各表示に反映する（双方向同期）。
+/// 書き込みは set 経路（persist / persistSettings）のみで、ポーリング代入は get 側の更新のみ。
+/// State はページをまたいで ContentView が保持するため、ページ切替で失われない。
 struct ContentView: View {
     @SwiftUI.State private var key = PitchClass(0)
     @SwiftUI.State private var scale: Scale = .major
     @SwiftUI.State private var settings: IO.Settings = .default
 
+    /// 表示中のページ。ナビ/戻るボタンで切り替える。
+    @SwiftUI.State private var page: Page = .main
+
     private let store = StateStore()
 
-    /// ピッカー用バインディング。set でのみ保存し、ポーリングの代入では保存しない。
-    private var keyBinding: Binding<PitchClass> {
-        Binding(get: { key }, set: { persist(key: $0, scale: scale) })
-    }
-    private var scaleBinding: Binding<Scale> {
-        Binding(get: { scale }, set: { persist(key: key, scale: $0) })
-    }
+    /// MF64 接続状態のポーリング監視（ヘッダーのステータス表示用）。
+    @StateObject private var connection = MIDIConnectionMonitor()
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                controlSection
-                Divider()
-                midiSettingsSection
-                Divider()
-                CommandCatalogView()
-            }
+        pageContent
             .padding(24)
-        }
-        .task {
-            // View 寿命に紐づく単一ループ。CLI 等の外部変更をピッカー/グリッド/設定へ取り込む。
-            while !Task.isCancelled {
-                if let s = try? store.load() {
-                    key = s.key
-                    scale = s.scale
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .background(PlateBackground().ignoresSafeArea())
+            .overlay(GrainOverlay().ignoresSafeArea())
+            .task {
+                // View 寿命に紐づく単一ループ。CLI 等の外部変更をグリッド/設定へ取り込む。
+                while !Task.isCancelled {
+                    if let s = try? store.load() {
+                        key = s.key
+                        scale = s.scale
+                    }
+                    if let loaded = try? store.loadSettings() {
+                        settings = loaded
+                    }
+                    try? await Task.sleep(for: .seconds(0.5))
                 }
-                if let loaded = try? store.loadSettings() {
-                    settings = loaded
-                }
-                try? await Task.sleep(for: .seconds(0.5))
             }
+            .task {
+                // 接続状態を別ループでポーリングする（送信はしない）。
+                await connection.poll()
+            }
+    }
+
+    // MARK: - ページ本体
+
+    /// 現在の `page` に応じた中身。各ページはウィンドウに収める（スクロールしない）。
+    @ViewBuilder private var pageContent: some View {
+        switch page {
+        case .main: mainPage
+        case .midiOutput: midiOutputPage
+        case .shortcut: shortcutPage
         }
     }
 
-    /// MIDI チャンネルと 3 色 velocity を編集する。編集ごとに DB へ保存する。
-    private var midiSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("MIDI 設定").font(.headline)
-            Text("参考値: channel=2 / 紫(root)=54 / 水色(member)=36 / 白(outside)=3")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Stepper(
-                "MIDI チャンネル: \(settings.midiChannel)",
-                value: channelBinding,
-                in: 1...16
+    /// MAIN ページ。HEADER + MAIN セクション + サブページへのナビ。
+    private var mainPage: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.section) {
+            HeaderView(isConnected: connection.isConnected)
+            MainSection(
+                key: key,
+                scale: scale,
+                onRootChange: { persist(key: $0, scale: scale) },
+                onScaleChange: { persist(key: key, scale: $0) }
             )
-            .frame(width: 240)
-            colorStepper("紫 (root)", value: \.colorRoot)
-            colorStepper("水色 (member)", value: \.colorMember)
-            colorStepper("白 (outside)", value: \.colorOutside)
+            Spacer(minLength: 0)
+            jumpNav
         }
     }
 
-    private var channelBinding: Binding<Int> {
-        Binding(
-            get: { settings.midiChannel },
-            set: { newValue in
-                var updated = settings
-                updated.midiChannel = newValue
-                settings = updated
-                try? store.saveSettings(updated)
-                pushToDevice(key: key, scale: scale, settings: updated)
+    /// MAIN 下部のページ遷移ナビ。サブページを差し替え表示する。
+    private var jumpNav: some View {
+        HStack(spacing: DesignTokens.Spacing.element) {
+            SkeuoButton(action: { page = .midiOutput }) {
+                Text("MIDI OUTPUT")
             }
-        )
-    }
-
-    /// 1 色分の velocity Stepper（0..127）を作る。
-    private func colorStepper(
-        _ label: String,
-        value keyPath: WritableKeyPath<IO.Settings, UInt8>
-    ) -> some View {
-        let binding = Binding<Int>(
-            get: { Int(settings[keyPath: keyPath]) },
-            set: { newValue in
-                var updated = settings
-                updated[keyPath: keyPath] = UInt8(clamping: newValue)
-                settings = updated
-                try? store.saveSettings(updated)
-                pushToDevice(key: key, scale: scale, settings: updated)
+            SkeuoButton(action: { page = .shortcut }) {
+                Text("SHORTCUT COMMANDS")
             }
-        )
-        return Stepper("\(label): \(Int(settings[keyPath: keyPath]))", value: binding, in: 0...127)
-            .frame(width: 240)
-    }
-
-    private var controlSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("キー / スケール").font(.headline)
-            HStack(spacing: 16) {
-                Picker("Key", selection: keyBinding) {
-                    ForEach(0..<12, id: \.self) { v in
-                        Text(KeyNames.names[v]).tag(PitchClass(v))
-                    }
-                }
-                .frame(width: 140)
-                Picker("Scale", selection: scaleBinding) {
-                    ForEach(Scale.allCases, id: \.self) { s in
-                        Text(s.rawValue).tag(s)
-                    }
-                }
-                .frame(width: 220)
-            }
-            PadGridView(state: Core.State(key: key, scale: scale))
+            Spacer(minLength: 0)
         }
     }
 
-    /// 状態を更新して DB に保存し、実機へ送信する（ピッカー操作の唯一の書き込み経路）。
+    /// MIDI OUTPUT ページ。戻る + 見出し + MidiOutputSection。
+    private var midiOutputPage: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.section) {
+            subpageHeader("MIDI OUTPUT")
+            MidiOutputSection(
+                settings: settings,
+                onSettingsChange: persistSettings
+            )
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// SHORTCUT COMMANDS ページ。戻る + 見出し + CommandCatalogView。
+    private var shortcutPage: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.section) {
+            subpageHeader("SHORTCUT COMMANDS")
+            CommandCatalogView()
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// サブページ上部の「←」戻るボタン + セクション見出し。
+    private func subpageHeader(_ title: String) -> some View {
+        HStack(spacing: DesignTokens.Spacing.element) {
+            SkeuoButton(action: { page = .main }) {
+                Text("←")
+            }
+            .accessibilityLabel("back")
+            EngravedText(title, font: .oswald(20), color: DesignTokens.Engrave.strong)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// 設定を更新して DB に保存し、実機へ送信する（MIDI OUTPUT ノブ操作の唯一の書き込み経路）。
+    private func persistSettings(_ updated: IO.Settings) {
+        settings = updated
+        try? store.saveSettings(updated)
+        pushToDevice(key: key, scale: scale, settings: updated)
+    }
+
+    /// 状態を更新して DB に保存し、実機へ送信する（ROOT/SCALE 操作の唯一の書き込み経路）。
     private func persist(key newKey: PitchClass, scale newScale: Scale) {
         key = newKey
         scale = newScale
