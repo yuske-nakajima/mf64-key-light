@@ -1,0 +1,18 @@
+name: '🚀 機能リクエスト（Feature Request）'
+description: '新機能や機能拡張を要望する'
+title: '[Feature]: '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        新機能や機能拡張を要望する
+  - type: textarea
+    id: 01-about
+    attributes:
+      label: '概要'
+      description: |
+        Add a description
+      placeholder: 'markdown形式で記述してください'
+    validations:
+      required: true

@@ -1,0 +1,18 @@
+name: '💬 質問・相談（Question）'
+description: '質問や使い方の相談'
+title: '[Question]: '
+labels: ['question']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        質問や使い方の相談
+  - type: textarea
+    id: 01-about
+    attributes:
+      label: '概要'
+      description: |
+        Add a description
+      placeholder: 'markdown形式で記述してください'
+    validations:
+      required: true

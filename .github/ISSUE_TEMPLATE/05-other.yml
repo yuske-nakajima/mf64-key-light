@@ -1,0 +1,17 @@
+name: '📌 その他（Other）'
+description: 'その他一般的なタスク'
+title: '[Other]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        その他一般的なタスク
+  - type: textarea
+    id: 01-about
+    attributes:
+      label: '概要'
+      description: |
+        Add a description
+      placeholder: 'markdown形式で記述してください'
+    validations:
+      required: true

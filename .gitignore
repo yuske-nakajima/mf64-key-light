@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+*.xcodeproj
+.DS_Store
+
+# SQLite 状態ファイル（ローカル実行で生成）
+*.sqlite
+*.sqlite-journal
+*.db

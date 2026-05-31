@@ -1,0 +1,18 @@
+name: '🐞 バグ報告（Bug Report）'
+description: '不具合やエラー報告用'
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不具合やエラー報告用
+  - type: textarea
+    id: 01-about
+    attributes:
+      label: '概要'
+      description: |
+        Add a description
+      placeholder: 'markdown形式で記述してください'
+    validations:
+      required: true
