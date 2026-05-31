@@ -14,16 +14,23 @@ struct SettingsApp: App {
 
 /// 1 ウィンドウに「現在状態」「配色プレビュー」「コマンドカタログ」を並べる。
 struct ContentView: View {
-    /// プレビュー対象のキー/スケール。画面で選んで配色を確認する。
+    /// StateStore をポーリングして得た現在状態（CLI/ショートカット更新に追従）。
+    @SwiftUI.State private var liveState: Core.State?
+    /// オンのときグリッドは現在状態に追従。オフで手動プレビュー。
+    @SwiftUI.State private var followLive = true
+    /// 手動プレビュー対象のキー/スケール。
     @SwiftUI.State private var previewKey = PitchClass(0)
     @SwiftUI.State private var previewScale: Scale = .major
 
-    /// StateStore をポーリングして得た現在状態（CLI 更新に追従）。
-    @SwiftUI.State private var liveState: Core.State?
-
-    /// 1 秒ごとに DB を読む。
-    private let pollTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
     private let store = StateStore()
+
+    /// グリッドに描く状態。追従オン かつ 現在状態あり ならそれを、無ければ手動ピッカーを使う。
+    private var displayState: Core.State {
+        if followLive, let s = liveState {
+            return s
+        }
+        return Core.State(key: previewKey, scale: previewScale)
+    }
 
     var body: some View {
         ScrollView {
@@ -36,11 +43,18 @@ struct ContentView: View {
             }
             .padding(24)
         }
-        .onReceive(pollTimer) { _ in
-            liveState = try? store.load()
-        }
-        .onAppear {
-            liveState = try? store.load()
+        .task {
+            // View 寿命に紐づく単一ループ。再生成ごとに作り直される stored Timer と違い安定して回る。
+            while !Task.isCancelled {
+                let loaded = try? store.load()
+                liveState = loaded
+                // 追従中はピッカーも現在状態に合わせ、トグルを切り替えた瞬間から連続させる。
+                if followLive, let s = loaded {
+                    previewKey = s.key
+                    previewScale = s.scale
+                }
+                try? await Task.sleep(for: .seconds(0.5))
+            }
         }
     }
 
@@ -59,6 +73,8 @@ struct ContentView: View {
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("配色プレビュー（8×8）").font(.headline)
+            Toggle("現在状態に追従（オフで手動プレビュー）", isOn: $followLive)
+                .toggleStyle(.switch)
             HStack(spacing: 16) {
                 Picker("Key", selection: $previewKey) {
                     ForEach(0..<12, id: \.self) { v in
@@ -73,7 +89,8 @@ struct ContentView: View {
                 }
                 .frame(width: 220)
             }
-            PadGridView(state: Core.State(key: previewKey, scale: previewScale))
+            .disabled(followLive)
+            PadGridView(state: displayState)
         }
     }
 }
