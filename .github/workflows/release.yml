@@ -6,8 +6,9 @@ on:
       - 'v*'
   pull_request:
 
+# 既定は読み取りのみ。Release 作成に必要な書き込み権限は release ジョブだけに与える。
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   package:
@@ -25,16 +26,27 @@ jobs:
           else
             bash scripts/package-dmg.sh dev
           fi
-      # PR ではリリースせず artifact として DMG を残す（検証用）。
       - name: Upload DMG artifact
-        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@v4
         with:
           name: dmg
           path: dist/*.dmg
-      # タグ時のみ GitHub Release を作成して DMG を添付する。
+
+  # タグ push 時のみ、package が作った DMG を GitHub Release に添付する。
+  # 書き込み権限はこのジョブに限定する。
+  release:
+    needs: package
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dmg
+          path: dist
       - name: Create GitHub Release
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

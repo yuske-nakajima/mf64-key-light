@@ -26,6 +26,7 @@
 4. CLI（`mf64`）をショートカット.app やターミナルから使う場合は、DMG 同梱の `mf64` を PATH の通った場所へコピーします。
 
    ```sh
+   mkdir -p /usr/local/bin
    cp "/Volumes/MF64 Key Light/mf64" /usr/local/bin/mf64
    xattr -d com.apple.quarantine /usr/local/bin/mf64 2>/dev/null || true
    ```
