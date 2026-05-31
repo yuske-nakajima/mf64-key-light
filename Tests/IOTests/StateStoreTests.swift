@@ -61,12 +61,13 @@ struct StateStoreTests {
         }
     }
 
-    @Test("MF64_DB_PATH 環境変数が無指定の path より優先される")
-    func envPathRespectedByDefault() {
-        // path を nil にすると環境変数を見る。テストプロセスで設定済みの値を反映するか確認。
-        // ここでは環境変数を直接いじらず、明示 path 指定が環境変数より優先されることを確認する。
-        let explicit = "/tmp/explicit.sqlite"
-        let store = StateStore(path: explicit)
-        #expect(store.path == explicit)
+    @Test("明示 path は MF64_DB_PATH より優先され、未指定なら環境変数を採用する")
+    func explicitPathOverridesEnv() {
+        setenv("MF64_DB_PATH", "/tmp/from-env.sqlite", 1)
+        defer { unsetenv("MF64_DB_PATH") }
+        // 明示 path があれば環境変数を無視する。
+        #expect(StateStore(path: "/tmp/explicit.sqlite").path == "/tmp/explicit.sqlite")
+        // path 未指定なら環境変数を採用する。
+        #expect(StateStore(path: nil).path == "/tmp/from-env.sqlite")
     }
 }

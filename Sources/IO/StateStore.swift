@@ -10,11 +10,8 @@ public struct StateStore {
     /// DB ファイルパス。`MF64_DB_PATH` があればそれを優先、無ければ Application Support 配下。
     public let path: String
 
-    /// SQLite が文字列バインドのコピーを取るための SQLITE_TRANSIENT 相当。
-    private static let transient = unsafeBitCast(
-        -1,
-        to: (@convention(c) (UnsafeMutableRawPointer?) -> Void).self
-    )
+    /// SQLite が文字列バインドのコピーを取るための SQLITE_TRANSIENT(-1) 相当。
+    private static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     public init(path: String? = nil) {
         if let path {

@@ -25,7 +25,8 @@ struct PadGridView: View {
                 HStack(spacing: 4) {
                     ForEach(0..<columns, id: \.self) { col in
                         let index = row * columns + col
-                        cell(for: pads[index].color)
+                        // padMap が 64 未満でも安全に描く。範囲外は消灯(白)扱い。
+                        cell(for: index < pads.count ? pads[index].color : .outside)
                     }
                 }
             }
