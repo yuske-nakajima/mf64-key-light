@@ -70,7 +70,9 @@ struct MainSection: View {
         VStack(spacing: 10) {
             EngravedText("ROOT", font: .oswald(12))
             DragKnob(
-                value: rootBinding,
+                // 確定は onChange のみ（MidiOutputSection と統一）。value 経由の set で
+                // onRootChange が二重発火しないよう .constant にする。表示は現在キーで追従。
+                value: .constant(key.value),
                 mapping: .pitchClass(),
                 label: "ROOT",
                 onChange: { onRootChange(PitchClass($0)) }
@@ -99,15 +101,6 @@ struct MainSection: View {
                 action: { onRootChange(PitchClass(key.value + 1)) }
             )
         }
-    }
-
-    /// ROOT ノブのバインディング。get は現在キー、set は確定コールバックへ流す。
-    /// 親の State をポーリングが更新するため、ここでは楽観更新の永続保持はしない。
-    private var rootBinding: Binding<Int> {
-        Binding(
-            get: { key.value },
-            set: { onRootChange(PitchClass($0)) }
-        )
     }
 
     // MARK: - hero（主役表示）
