@@ -46,14 +46,29 @@ struct ColorscanTests {
         #expect(config == ColorscanConfig(note: 40, from: 5, to: 20, delayMilliseconds: 50))
     }
 
-    @Test("parseColorscan: from が範囲外なら velocityOutOfRange")
+    @Test("parseColorscan: from が範囲外なら元の値を保持した outOfRange")
     func parseFromOutOfRange() {
-        #expect(parseColorscan(["--from", "200"]) == .failure(.velocityOutOfRange(200)))
+        #expect(
+            parseColorscan(["--from", "200"]) == .failure(.outOfRange(option: "--from", value: 200))
+        )
     }
 
-    @Test("parseColorscan: to が範囲外なら velocityOutOfRange")
+    @Test("parseColorscan: to が範囲外なら元の値を保持した outOfRange")
     func parseToOutOfRange() {
-        #expect(parseColorscan(["--to", "128"]) == .failure(.velocityOutOfRange(128)))
+        #expect(
+            parseColorscan(["--to", "128"]) == .failure(.outOfRange(option: "--to", value: 128))
+        )
+    }
+
+    @Test("parseColorscan: note が範囲外なら元の値を保持した outOfRange")
+    func parseNoteOutOfRange() {
+        #expect(
+            parseColorscan(["--note", "128"]) == .failure(.outOfRange(option: "--note", value: 128))
+        )
+        // 負値もクランプせず元の値で返す。
+        #expect(
+            parseColorscan(["--from", "-1"]) == .failure(.outOfRange(option: "--from", value: -1))
+        )
     }
 
     @Test("parseColorscan: 値欠落は missingValue")

@@ -86,8 +86,8 @@ private func describe(_ error: ColorscanParseError) -> String {
         return "オプション \(option) の値が不正です: \(value)"
     case .unknownOption(let s):
         return "未知のオプションです: \(s)"
-    case .velocityOutOfRange(let v):
-        return "velocity は 0..127 の範囲です: \(v)"
+    case .outOfRange(let option, let value):
+        return "\(option) は 0..127 の範囲です: \(value)"
     }
 }
 
@@ -102,12 +102,12 @@ private func isDryRun() -> Bool {
 }
 
 /// 実送信用の RawMIDISender を返す。dry-run なら LoggingMIDISender。
-/// 実機モードで destination 不在なら nil（呼び出し側で扱う）。
-private func makeRawSender(_ settings: Settings) -> RawMIDISender? {
+/// 実機モードの初期化失敗（destination 不在・client/port 生成失敗）は元の CoreMIDIError を投げる。
+private func makeRawSender(_ settings: Settings) throws -> RawMIDISender {
     if isDryRun() {
         return LoggingMIDISender(settings: settings)
     }
-    return try? CoreMIDISender(settings: settings)
+    return try CoreMIDISender(settings: settings)
 }
 
 /// DB から設定を読む。失敗時は fail で終了。
@@ -166,10 +166,12 @@ private func runConfig(_ rest: [String]) -> Never {
 
 private func runOff() -> Never {
     let settings = loadSettings()
-    guard let sender = makeRawSender(settings) else {
-        fail(CoreMIDIError.destinationNotFound.description)
+    do {
+        let sender = try makeRawSender(settings)
+        try sender.sendAllOff(padMap: Devices.defaultPadMap)
+    } catch {
+        fail("\(error)")
     }
-    sender.sendAllOff(padMap: Devices.defaultPadMap)
     print("off: 全 \(Devices.padCount) パッドに velocity 0 を送信")
     exit(0)
 }
@@ -186,14 +188,21 @@ private func runColorscan(_ rest: [String]) -> Never {
     }
 
     let settings = loadSettings()
-    guard let sender = makeRawSender(settings) else {
-        fail(CoreMIDIError.destinationNotFound.description)
+    let sender: RawMIDISender
+    do {
+        sender = try makeRawSender(settings)
+    } catch {
+        fail("\(error)")
     }
 
     let steps = colorscanSteps(config)
     let delaySeconds = Double(config.delayMilliseconds) / 1000.0
     for step in steps {
-        sender.sendNoteOn(note: step.note, velocity: step.velocity)
+        do {
+            try sender.sendNoteOn(note: step.note, velocity: step.velocity)
+        } catch {
+            fail("\(error)")
+        }
         print("colorscan: note=\(step.note) velocity=\(step.velocity)")
         if step.velocity != config.to && delaySeconds > 0 {
             // 各色をユーザーが目視で判別できるよう間隔を空ける。
@@ -261,7 +270,7 @@ private func runStateCommand(_ command: Command) -> Never {
 
     do {
         let sender = try CoreMIDISender(settings: settings)
-        sender.send(pads, padMap: Devices.defaultPadMap)
+        try sender.send(pads, padMap: Devices.defaultPadMap)
         exit(0)
     } catch {
         // 状態は保存済み。送信だけ失敗したことを伝えて非0 exit。

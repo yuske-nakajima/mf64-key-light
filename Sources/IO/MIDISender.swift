@@ -15,17 +15,17 @@ public func noteOnBytes(note: Int, velocity: UInt8, channel: Int) -> [UInt8] {
 
 /// LED 点灯のための MIDI 送信境界。色レイアウトを padMap でノート番号に解決して送る。
 public protocol MIDISender {
-    /// 各パッドの色を padMap でノート番号に解決して送信する。
-    func send(_ pads: [(pad: Int, color: LEDColor)], padMap: [Int])
+    /// 各パッドの色を padMap でノート番号に解決して送信する。送信失敗時は throw する。
+    func send(_ pads: [(pad: Int, color: LEDColor)], padMap: [Int]) throws
 }
 
 /// note/velocity を直接指定して Note On を送る境界。off / colorscan で使う。
 public protocol RawMIDISender {
-    /// 単発の Note On を送る。
-    func sendNoteOn(note: Int, velocity: UInt8)
+    /// 単発の Note On を送る。送信失敗時は throw する。
+    func sendNoteOn(note: Int, velocity: UInt8) throws
 
-    /// 全 64 パッドに velocity 0 を送って消灯する。
-    func sendAllOff(padMap: [Int])
+    /// 全 64 パッドに velocity 0 を送って消灯する。送信失敗時は throw する。
+    func sendAllOff(padMap: [Int]) throws
 }
 
 /// 送信内容を標準出力にログ出力するだけのスタブ。実機なしでパイプライン確認に使う。

@@ -9,6 +9,8 @@ public enum CoreMIDIError: Error, CustomStringConvertible {
     case portCreationFailed(OSStatus)
     /// "Midi Fighter 64" を含む destination が見つからない。
     case destinationNotFound
+    /// MIDISend が失敗した（OSStatus 付き）。
+    case sendFailed(OSStatus)
 
     public var description: String {
         switch self {
@@ -18,6 +20,8 @@ public enum CoreMIDIError: Error, CustomStringConvertible {
             return "MIDIOutputPortCreate に失敗しました (OSStatus=\(status))"
         case .destinationNotFound:
             return "Midi Fighter 64 が見つかりません"
+        case .sendFailed(let status):
+            return "MIDISend に失敗しました (OSStatus=\(status))"
         }
     }
 }
@@ -91,29 +95,29 @@ public final class CoreMIDISender: MIDISender, RawMIDISender {
         return cf as String
     }
 
-    public func send(_ pads: [(pad: Int, color: LEDColor)], padMap: [Int]) {
+    public func send(_ pads: [(pad: Int, color: LEDColor)], padMap: [Int]) throws {
         for (pad, color) in pads {
             // padMap 範囲外のパッドはスキップする。
             guard pad >= 0, pad < padMap.count else { continue }
             let note = padMap[pad]
             let velocity = settings.velocity(for: color)
-            sendNoteOn(note: note, velocity: velocity)
+            try sendNoteOn(note: note, velocity: velocity)
         }
     }
 
-    public func sendNoteOn(note: Int, velocity: UInt8) {
+    public func sendNoteOn(note: Int, velocity: UInt8) throws {
         let bytes = noteOnBytes(note: note, velocity: velocity, channel: channel)
-        sendRaw(bytes)
+        try sendRaw(bytes)
     }
 
-    public func sendAllOff(padMap: [Int]) {
+    public func sendAllOff(padMap: [Int]) throws {
         for note in padMap {
-            sendNoteOn(note: note, velocity: 0)
+            try sendNoteOn(note: note, velocity: 0)
         }
     }
 
-    /// 3 バイトを 1 つの MIDIPacketList に詰めて MIDISend する。
-    private func sendRaw(_ bytes: [UInt8]) {
+    /// 3 バイトを 1 つの MIDIPacketList に詰めて MIDISend する。失敗時は throw する。
+    private func sendRaw(_ bytes: [UInt8]) throws {
         var packetList = MIDIPacketList()
         let packet = MIDIPacketListInit(&packetList)
         bytes.withUnsafeBufferPointer { buffer in
@@ -126,6 +130,9 @@ public final class CoreMIDISender: MIDISender, RawMIDISender {
                 buffer.baseAddress!
             )
         }
-        MIDISend(port, destination, &packetList)
+        let status = MIDISend(port, destination, &packetList)
+        guard status == noErr else {
+            throw CoreMIDIError.sendFailed(status)
+        }
     }
 }

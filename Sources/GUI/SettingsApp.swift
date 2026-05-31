@@ -142,6 +142,6 @@ struct ContentView: View {
         guard let sender = try? CoreMIDISender(settings: settings) else { return }
         let state = Core.State(key: key, scale: scale)
         let pads = layout(state: state, padMap: Devices.defaultPadMap)
-        sender.send(pads, padMap: Devices.defaultPadMap)
+        try? sender.send(pads, padMap: Devices.defaultPadMap)
     }
 }

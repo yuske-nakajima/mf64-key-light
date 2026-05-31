@@ -41,8 +41,8 @@ public enum ColorscanParseError: Error, Equatable, Sendable {
     case missingValue(option: String)
     case invalidValue(option: String, value: String)
     case unknownOption(String)
-    /// from/to が 0..127 の範囲外。
-    case velocityOutOfRange(UInt8)
+    /// note / from / to が 0..127 の範囲外。value は入力された元の値（クランプしない）。
+    case outOfRange(option: String, value: Int)
 }
 
 /// `colorscan [--note N] [--from A] [--to B] [--delay MS]` の引数を ColorscanConfig へ変換する。
@@ -95,10 +95,15 @@ public func parseColorscan(_ args: [String]) -> Result<ColorscanConfig, Colorsca
         }
     }
 
-    guard (0...127).contains(from) else {
-        return .failure(.velocityOutOfRange(UInt8(clamping: from)))
+    guard (0...127).contains(note) else {
+        return .failure(.outOfRange(option: "--note", value: note))
     }
-    guard (0...127).contains(to) else { return .failure(.velocityOutOfRange(UInt8(clamping: to))) }
+    guard (0...127).contains(from) else {
+        return .failure(.outOfRange(option: "--from", value: from))
+    }
+    guard (0...127).contains(to) else {
+        return .failure(.outOfRange(option: "--to", value: to))
+    }
 
     return .success(
         ColorscanConfig(
