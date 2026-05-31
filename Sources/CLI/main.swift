@@ -17,6 +17,7 @@ private func printUsage() {
           off                                   全 64 パッドを消灯（velocity 0）
           colorscan [--note N] [--from A] [--to B] [--delay MS]
                                                 指定 note に velocity A..B を順送りして校正
+          monitor                               MF64 の入力を監視しログ出力（Ctrl-C で終了）
 
         examples:
           mf64 set --key C --scale major
@@ -24,6 +25,7 @@ private func printUsage() {
           mf64 root --down
           mf64 off
           mf64 colorscan --from 0 --to 20 --delay 300
+          mf64 monitor
         """
     FileHandle.standardError.write(Data((usage + "\n").utf8))
 }
@@ -124,6 +126,24 @@ private func runColorscan(_ rest: [String]) -> Never {
     exit(0)
 }
 
+// MARK: - monitor（入力監視・デバッグ用）
+
+private func runMonitor() -> Never {
+    let monitor: CoreMIDIMonitor
+    do {
+        monitor = try CoreMIDIMonitor { message in
+            print("\(message.description)")
+        }
+    } catch {
+        fail("\(error)")
+    }
+    // monitor を保持したまま RunLoop を回す（解放されると購読が切れる）。
+    _ = monitor
+    FileHandle.standardError.write(Data("monitor: Midi Fighter 64 を監視中。Ctrl-C で終了\n".utf8))
+    RunLoop.main.run()
+    exit(0)
+}
+
 // MARK: - set / scale / root（状態遷移）
 
 private func runStateCommand(_ command: Command) -> Never {
@@ -182,6 +202,8 @@ case "off":
     runOff()
 case "colorscan":
     runColorscan(rest)
+case "monitor":
+    runMonitor()
 default:
     let command: Command
     switch parse(args) {

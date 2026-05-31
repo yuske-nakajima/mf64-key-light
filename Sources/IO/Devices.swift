@@ -12,8 +12,9 @@ public enum Devices {
     /// 校正用に colorscan が既定で対象にする代表ノート（左下=ボタン1=note 36）。
     public static let colorscanDefaultNote = 36
 
-    /// チャンネル既定値。tilerhyme 実機実証は ch1。説明書の factory default は ch3。
-    private static let defaultMidiChannel = 1
+    /// チャンネル既定値。実機の入力モニタで Bank 2 = ch2 を確認済み（status 0x91 で点灯）。
+    /// 説明書では Bank 1=ch3 / Bank 2=ch2。device の Bank 設定で変わるため上書き可。
+    private static let defaultMidiChannel = 2
 
     /// CoreMIDI 送信に使う MIDI チャンネル（1..16）。
     ///

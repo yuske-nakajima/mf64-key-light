@@ -8,10 +8,10 @@ struct DevicesTests {
     /// MF64_MIDI_CHANNEL を読むテストはプロセス共有 env を触るため直列化する。
     @Suite(.serialized)
     struct MidiChannelEnv {
-        @Test("環境変数未設定なら既定 1")
+        @Test("環境変数未設定なら既定 2")
         func defaultChannel() {
             unsetenv("MF64_MIDI_CHANNEL")
-            #expect(Devices.midiChannel == 1)
+            #expect(Devices.midiChannel == 2)
         }
 
         @Test("範囲内の環境変数を優先する")
@@ -21,12 +21,12 @@ struct DevicesTests {
             #expect(Devices.midiChannel == 3)
         }
 
-        @Test("範囲外/不正は既定 1 にフォールバック")
+        @Test("範囲外/不正は既定 2 にフォールバック")
         func envFallback() {
             defer { unsetenv("MF64_MIDI_CHANNEL") }
             for invalid in ["0", "17", "-1", "abc", ""] {
                 setenv("MF64_MIDI_CHANNEL", invalid, 1)
-                #expect(Devices.midiChannel == 1)
+                #expect(Devices.midiChannel == 2)
             }
         }
     }
