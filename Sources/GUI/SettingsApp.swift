@@ -12,53 +12,70 @@ struct SettingsApp: App {
     }
 }
 
-/// 1 ウィンドウに「現在状態」「ライト配色」「コマンドカタログ」を並べる。
+/// 1 ウィンドウに「キー/スケール操作 + ライト配色」「コマンドカタログ」を並べる。
+///
+/// ピッカーは現在状態そのものを操作する。変更すると DB に保存され、グリッドが追従する。
+/// CLI/ショートカットでの変更も 0.5 秒ポーリングでピッカー/グリッドに反映する（双方向）。
 struct ContentView: View {
-    /// StateStore をポーリングして得た現在状態（CLI/ショートカット更新に追従）。
-    @SwiftUI.State private var liveState: Core.State?
+    @SwiftUI.State private var key = PitchClass(0)
+    @SwiftUI.State private var scale: Scale = .major
 
     private let store = StateStore()
+
+    /// ピッカー用バインディング。set でのみ保存し、ポーリングの代入では保存しない。
+    private var keyBinding: Binding<PitchClass> {
+        Binding(get: { key }, set: { persist(key: $0, scale: scale) })
+    }
+    private var scaleBinding: Binding<Scale> {
+        Binding(get: { scale }, set: { persist(key: key, scale: $0) })
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                currentStateSection
-                Divider()
-                colorSection
+                controlSection
                 Divider()
                 CommandCatalogView()
             }
             .padding(24)
         }
         .task {
-            // View 寿命に紐づく単一ループ。再生成ごとに作り直される stored Timer と違い安定して回る。
+            // View 寿命に紐づく単一ループ。CLI 等の外部変更をピッカー/グリッドへ取り込む。
             while !Task.isCancelled {
-                liveState = try? store.load()
+                if let s = try? store.load() {
+                    key = s.key
+                    scale = s.scale
+                }
                 try? await Task.sleep(for: .seconds(0.5))
             }
         }
     }
 
-    private var currentStateSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("現在状態（DB ポーリング）").font(.headline)
-            if let s = liveState {
-                Text("key=\(KeyNames.name(s.key))  scale=\(s.scale.rawValue)")
-                    .font(.system(.body, design: .monospaced))
-            } else {
-                Text("読み込み中…").foregroundStyle(.secondary)
+    private var controlSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("キー / スケール").font(.headline)
+            HStack(spacing: 16) {
+                Picker("Key", selection: keyBinding) {
+                    ForEach(0..<12, id: \.self) { v in
+                        Text(KeyNames.names[v]).tag(PitchClass(v))
+                    }
+                }
+                .frame(width: 140)
+                Picker("Scale", selection: scaleBinding) {
+                    ForEach(Scale.allCases, id: \.self) { s in
+                        Text(s.rawValue).tag(s)
+                    }
+                }
+                .frame(width: 220)
             }
+            PadGridView(state: Core.State(key: key, scale: scale))
         }
     }
 
-    private var colorSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("ライト配色（8×8）").font(.headline)
-            if let s = liveState {
-                PadGridView(state: s)
-            } else {
-                Text("読み込み中…").foregroundStyle(.secondary)
-            }
-        }
+    /// 状態を更新して DB に保存する（ピッカー操作の唯一の書き込み経路）。
+    private func persist(key newKey: PitchClass, scale newScale: Scale) {
+        key = newKey
+        scale = newScale
+        try? store.save(Core.State(key: newKey, scale: newScale))
     }
 }
