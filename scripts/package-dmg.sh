@@ -55,15 +55,14 @@ cp "$RELEASE_DIR/$GUI_EXECUTABLE" "$APP_DIR/Contents/MacOS/$GUI_EXECUTABLE"
 # CLI も .app 内に同梱する。
 cp "$RELEASE_DIR/$CLI_EXECUTABLE" "$APP_DIR/Contents/MacOS/$CLI_EXECUTABLE"
 
-# Bundle.module は .app 起動時 Bundle.main.resourceURL(= Contents/Resources/) を探すため、
-# リソースバンドルは Contents/Resources/ に置く。
-# （Contents/MacOS/ ではバイナリ直接実行時しか解決されず、Finder/open 起動で fatalError になる）
+# FontRegistration は .app 起動時 Bundle.main.resourceURL(= Contents/Resources/) を
+# 候補に含めて mf64-key-light_GUI.bundle を探すため、リソースバンドルはここに置く。
 mkdir -p "$APP_DIR/Contents/Resources"
 cp -R "$RELEASE_DIR/$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/$RESOURCE_BUNDLE"
 
 # SwiftPM のリソースバンドルは Info.plist を持たないフラットディレクトリのため、
 # codesign が「bundle format unrecognized」で失敗する。最小 Info.plist を足して
-# 署名可能な flat bundle にする（ttf は引き続き直下にあり Bundle.module の取得に影響しない）。
+# 署名可能な flat bundle にする（ttf は引き続き直下にあり FontRegistration の取得に影響しない）。
 cat >"$APP_DIR/Contents/Resources/$RESOURCE_BUNDLE/Info.plist" <<RBPLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -142,7 +141,7 @@ MF64 Key Light インストール手順
 
    「壊れているため開けません」と出る場合は quarantine 属性を外してください:
 
-     xattr -cr /Applications/MF64\ Key\ Light.app
+     xattr -dr com.apple.quarantine /Applications/MF64\ Key\ Light.app
 
 3. CLI（mf64）を PATH に通す（任意）
    ショートカット.app やターミナルから mf64 コマンドを使う場合は、

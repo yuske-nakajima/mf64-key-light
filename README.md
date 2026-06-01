@@ -27,7 +27,7 @@
    もし「"MF64 Key Light.app"は壊れているため開けません」と出る場合は、quarantine 属性を外してください:
 
    ```sh
-   xattr -cr "/Applications/MF64 Key Light.app"
+   xattr -dr com.apple.quarantine "/Applications/MF64 Key Light.app"
    ```
 4. CLI（`mf64`）をショートカット.app やターミナルから使う場合は、DMG 同梱の `mf64` を PATH の通った場所へコピーします。
 
