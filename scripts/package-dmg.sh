@@ -45,6 +45,12 @@ for artifact in "$GUI_EXECUTABLE" "$CLI_EXECUTABLE" "$RESOURCE_BUNDLE"; do
   fi
 done
 
+# アイコンソース（リポジトリ同梱）の存在チェック。
+if [ ! -e "$ROOT_DIR/packaging/AppIcon.icns" ]; then
+  echo "error: packaging/AppIcon.icns が見つからない" >&2
+  exit 1
+fi
+
 echo "==> staging dist/ (冪等に作り直す)"
 rm -rf "$DIST_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
@@ -59,6 +65,10 @@ cp "$RELEASE_DIR/$CLI_EXECUTABLE" "$APP_DIR/Contents/MacOS/$CLI_EXECUTABLE"
 # 候補に含めて mf64-key-light_GUI.bundle を探すため、リソースバンドルはここに置く。
 mkdir -p "$APP_DIR/Contents/Resources"
 cp -R "$RELEASE_DIR/$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/$RESOURCE_BUNDLE"
+
+# アプリアイコン。packaging/AppIcon.icns を Contents/Resources に置き、Info.plist の
+# CFBundleIconFile で参照する。
+cp "$ROOT_DIR/packaging/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 
 # SwiftPM のリソースバンドルは Info.plist を持たないフラットディレクトリのため、
 # codesign が「bundle format unrecognized」で失敗する。最小 Info.plist を足して
@@ -92,6 +102,8 @@ cat >"$APP_DIR/Contents/Info.plist" <<PLIST
 	<string>$APP_NAME</string>
 	<key>CFBundleExecutable</key>
 	<string>$GUI_EXECUTABLE</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$BUNDLE_ID</string>
 	<key>CFBundleVersion</key>
