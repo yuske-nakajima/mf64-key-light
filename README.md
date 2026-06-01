@@ -21,8 +21,14 @@
 ## インストール
 
 1. [Releases](https://github.com/yuske-nakajima/mf64-key-light/releases) から `MF64-Key-Light-<version>.dmg` をダウンロードして開く。
-2. **このアプリは無署名です。** ダブルクリックでは「開発元を確認できないため開けません」と出ます。`MF64 Key Light.app` を右クリック →「開く」→ ダイアログで「開く」を選ぶと起動できます（初回のみ。次回以降はダブルクリックで起動）。
-3. `MF64 Key Light.app` を `Applications` フォルダへドラッグしてインストール。
+2. `MF64 Key Light.app` を `Applications` フォルダへドラッグしてインストール。
+3. **Apple Developer 署名はありません（ad-hoc 署名のみ）。** ダブルクリックでは「開発元を確認できないため開けません」と出ます。`MF64 Key Light.app` を右クリック →「開く」→ ダイアログで「開く」を選ぶと起動できます（初回のみ。次回以降はダブルクリックで起動）。
+
+   もし「"MF64 Key Light.app"は壊れているため開けません」と出る場合は、quarantine 属性を外してください:
+
+   ```sh
+   xattr -dr com.apple.quarantine "/Applications/MF64 Key Light.app"
+   ```
 4. CLI（`mf64`）をショートカット.app やターミナルから使う場合は、DMG 同梱の `mf64` を PATH の通った場所へコピーします。
 
    ```sh
