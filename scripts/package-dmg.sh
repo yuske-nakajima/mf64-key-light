@@ -60,6 +60,10 @@ cp "$RELEASE_DIR/$CLI_EXECUTABLE" "$APP_DIR/Contents/MacOS/$CLI_EXECUTABLE"
 mkdir -p "$APP_DIR/Contents/Resources"
 cp -R "$RELEASE_DIR/$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/$RESOURCE_BUNDLE"
 
+# アプリアイコン。packaging/AppIcon.icns を Contents/Resources に置き、Info.plist の
+# CFBundleIconFile で参照する。
+cp "$ROOT_DIR/packaging/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+
 # SwiftPM のリソースバンドルは Info.plist を持たないフラットディレクトリのため、
 # codesign が「bundle format unrecognized」で失敗する。最小 Info.plist を足して
 # 署名可能な flat bundle にする（ttf は引き続き直下にあり FontRegistration の取得に影響しない）。
@@ -92,6 +96,8 @@ cat >"$APP_DIR/Contents/Info.plist" <<PLIST
 	<string>$APP_NAME</string>
 	<key>CFBundleExecutable</key>
 	<string>$GUI_EXECUTABLE</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$BUNDLE_ID</string>
 	<key>CFBundleVersion</key>
