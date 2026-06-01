@@ -45,6 +45,12 @@ for artifact in "$GUI_EXECUTABLE" "$CLI_EXECUTABLE" "$RESOURCE_BUNDLE"; do
   fi
 done
 
+# アイコンソース（リポジトリ同梱）の存在チェック。
+if [ ! -e "$ROOT_DIR/packaging/AppIcon.icns" ]; then
+  echo "error: packaging/AppIcon.icns が見つからない" >&2
+  exit 1
+fi
+
 echo "==> staging dist/ (冪等に作り直す)"
 rm -rf "$DIST_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
